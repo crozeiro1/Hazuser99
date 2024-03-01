@@ -3,9 +3,8 @@
 // @name:de     Paywall Unblocker v2 updated
 // @license     MIT
 // @namespace   http://tampermonkey.net/
-// @version     0.50
+// @version     0.51
 // @match        https://www.allgemeine-zeitung.de/*
-// @match        https://www.cz.de/*
 // @match        https://www.dnn.de/*
 // @match        https://www.echo-online.de/*
 // @match        https://www.goettinger-tageblatt.de/*
@@ -13,12 +12,9 @@
 // @match        https://www.hochheimer-zeitung.de/*
 // @match        https://www.kn-online.de/*
 // @match        https://www.ksta.de/*
-// @match        https://www.lauterbacher-anzeiger.de/*
 // @match        https://www.ln-online.de/*
 // @match        https://www.lvz.de/*
-// @match        https://www.main-spitze.de/*
 // @match        https://www.maz-online.de/*
-// @match        https://www.mittelhessen.de/*
 // @match        https://www.neuepresse.de/*
 // @match        https://www.oberhessische-zeitung.de/*
 // @match        https://www.op-marburg.de/*
@@ -51,8 +47,8 @@
              case "www.echo-online.de":
              case "www.hochheimer-zeitung.de":
              case "www.lauterbacher-anzeiger.de":
-             case "www.main-spitze.de":
-             case "www.mittelhessen.de":
+             // case "www.main-spitze.de":
+             // case "www.mittelhessen.de":
              case "www.oberhessische-zeitung.de":
              case "www.wiesbadener-kurier.de":
              case "www.wormser-zeitung.de":
@@ -72,7 +68,6 @@
                          parser = new DOMParser();
                          htmlDoc = parser.parseFromString(html, "text/html");
                          articleText = htmlDoc.querySelector(".field__items").innerHTML;
-                         console.log(articleText);
                          document.querySelector(".field__items").innerHTML = articleText;
                      }
                      break;
@@ -98,21 +93,13 @@
                      }
                      var paywall = document.querySelector('div.paywalledContent');
                      if (paywall){
+                         console.log("paywall");
                          GM.addStyle('[class^="ArticleContentLoaderstyled__Gradient-"],[id^="piano-lightbox-article-"],article > svg {display:none;}');
                          GM.addStyle(".h2-pw {font-family: 'DIN Next LT Pro', Arial, Roboto, sans-serif; font-weight:700; letter-spacing:-0.25px; font-size:22px; padding-bottom:4px;}");
                          // $("div[class^='ArticleContentLoaderstyled__Gradient-sc'").remove();
                          // $("span[class^='ArticleHeadstyled__ArticleHeadPaidIconContainer-sc'").remove();
-                         // $("svg[class^='Buttonstyled__ButtonIcon-'").toggle();
-                         // $("div[id^='piano-lightbox-article-'").remove();
-                         // $("div[class^='ArticleImagestyled__ArticleImageCaptionContainer-'").css('display','unset');
-                         // $("div[class^='ArticleImagestyled__ArticleImageOpenButton-'").remove();
-                         // $("div[id^='piano-lightbox-article-'").remove();
-                         // $("div[class^='recommendationstyled__RecommendationContainer'").remove();
-                         // $("div[class^='Adstyled__AdWrapper-sc'").remove();
-                         // $("#template-container").remove();
-                         // $("#article").find("svg").remove();
                          paywall.classList.remove(paywall.classList.item(1));
-                         var articleParagraph = paywall.querySelector("div:not([class]) > p");
+                         var articleParagraph = paywall.querySelector("div > p");
                          jsonText = document.querySelector("#fusion-metadata").innerHTML.split(/;Fusion\.globalContent.*?=/)[1];
                          jsonObj = JSON.parse(jsonText);
                          var elements = jsonObj.elements.filter(i => i.type != "ad");
@@ -126,8 +113,14 @@
                          if (appAdIndex != -1)
                              elements.splice(appAdIndex, 3);
                          articleText = [{text: articleParagraph.innerHTML},...elements.slice(1)].map(i => (i.type=="header"?`<h2 class="h2-pw ${articleParagraph.className}">`:`<p class="${articleParagraph.className}">`) + (i.text??"") + (i.type == "header"?"</h2>":"</p>") + (i.type == "image"?`<div><img alt="${i.imageInfo?.alt}" src="${i.imageInfo?.src}" width="100%"><div class=""><p class="ClTDP">${i.imageInfo?.caption}</p><p class="bIdZuO">${i.imageInfo?.credit}</p></div></div>`:"") + (i.type == "list"?"<ul>" + i.list?.items?.map(l => "<li>• " + l.text + "</li>").join("") + "</ul>":"")).join("");
-                         console.log(articleText);
                          articleParagraph.parentElement.innerHTML = articleText;
+                         paywall.querySelectorAll('*').forEach($el => {
+                             $el.style.height = "auto";
+                             // $el.className='';
+                             // $el.style.fontSize = "17px";
+                             // $el.style.lineHeight = "26px";
+                             // $el.style.fontFamily  = "Source Serif Pro, Palatino, Droid Serif, serif";
+                         });
                      }
                      break;
                  }
@@ -204,8 +197,10 @@
      };
 
      function insert(){
-         loopFunction(1000, run(),function(){
+         loopFunction(100, run(),function(){
+             console.time("run");
              run();
+             console.timeEnd("run");
              console.log("checking for AD Stuff to Remove");
          });
      }
