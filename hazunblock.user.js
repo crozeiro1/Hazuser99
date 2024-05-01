@@ -3,9 +3,10 @@
 // @name:de     Paywall Unblocker v2 updated
 // @license     MIT
 // @namespace   http://tampermonkey.net/
-// @version     0.57
+// @version     0.58
 // @match        https://www.allgemeine-zeitung.de/*
 // @match        https://www.dnn.de/*
+// @match        https://www.nw.de/*
 // @match        https://www.echo-online.de/*
 // @match        https://www.goettinger-tageblatt.de/*
 // @match        https://www.haz.de/*
@@ -46,10 +47,11 @@
             case "www.echo-online.de":
             case "www.hochheimer-zeitung.de":
             case "www.lauterbacher-anzeiger.de":
-                // case "www.main-spitze.de":
-                // case "www.mittelhessen.de":
+            // case "www.main-spitze.de":
+            // case "www.mittelhessen.de":
             case "www.oberhessische-zeitung.de":
             case "www.wiesbadener-kurier.de":
+            case "www.nw.de":
             case "www.wormser-zeitung.de":
                 {
                     GM.addStyle(".loadingBanner,.adSlot {display:none!important;}");
@@ -93,9 +95,10 @@
                     var paywall = document.querySelector('div.paywalledContent');
                     if (paywall){
                         console.log("paywall");
-                        GM.addStyle('[class^="ArticleContentLoaderstyled__Gradient-"],[id^="piano-lightbox-article-"],article > svg {display:none;}');
-                        GM.addStyle('[class^="Articlestyled__ArticleBodyWrapper-sc-"],[id^="piano-lightbox-article-"],article > svg {display:none;}');
-                        GM.addStyle(".h2-pw {font-family: 'DIN Next LT Pro', Arial, Roboto, sans-serif; font-weight:700; letter-spacing:-0.25px; font-size:22px; padding-bottom:4px;}");
+                        // GM.addStyle('[class^="ArticleContentLoaderstyled__Gradient-"],[id^="piano-home-inline-haz"],[id^="piano-lightbox-article-"],article > svg {display:none;}');
+                        // GM.addStyle('[class^="Articlestyled__ArticleBodyWrapper-sc-"],[class^="Adstyled__AdWrapper-sc-"],[id^="piano-lightbox-article-"],article > svg {display:none;}');
+                        // GM.addStyle('[class^="HeaderWithNavBarstyled"] {position:relative !important;}');
+                        // GM.addStyle(".h2-pw {font-family: 'DIN Next LT Pro', Arial, Roboto, sans-serif; font-weight:700; letter-spacing:-0.25px; font-size:22px; padding-bottom:4px;}");
                         $("div[class='OUTBRAIN'").remove();
                         // $("div[class^='Adstyled__AdWrapper-sc'").remove();
                         paywall.classList.remove(paywall.classList.item(1));
@@ -137,8 +140,12 @@
                             $el.style.fontDecoration  = "underline";
                         });
                     }
+                    GM.addStyle('[class^="ReadProgressstyled"],[class^="ArticleContentLoaderstyled__Gradient-"],[id^="piano-home-inline-haz"],[id^="piano-lightbox-article-"],article > svg {display:none;}');
+                    // GM.addStyle('[class^="Articlestyled__ArticleBodyWrapper-sc-"],[class^="Adstyled__AdWrapper-sc-"],[id^="piano-lightbox-article-"],article > svg {display:none;}');
+                    GM.addStyle('[class^="HeaderWithNavBarstyled"] {position:relative !important;}');
+                    GM.addStyle(".h2-pw {font-family: 'DIN Next LT Pro', Arial, Roboto, sans-serif; font-weight:700; letter-spacing:-0.25px; font-size:22px; padding-bottom:4px;}");
                     $("div[class='OUTBRAIN'").remove();
-                    // $("div[class^='Adstyled__AdWrapper-sc-'").remove();
+                    $("div[id^='mad_m_incontent-'").remove();
                     break;
                 }
             case "www.ksta.de":
@@ -149,6 +156,51 @@
                     break;
                 }
         }
+        async function breakVMArticle01(){
+            url = location.href
+            if (document.querySelector(".articleHeader__top .badges")){
+                site = await fetch(location.href);
+                html = await site.text();
+                parser = new DOMParser();
+                htmlDoc = parser.parseFromString(html, "text/html");
+                jsonText = htmlDoc.querySelector("script").innerText.replace(/^window\.__INITIAL_STATE__=/,"").replace(/;\(function\(\).*/,"");
+                console.log(jsonText);
+                jsonObj = JSON.parse(jsonText);
+                articleText = jsonObj.contentPage.data.context.storylineText;
+                console.log(articleText);
+
+                var texts = articleText.split(/<\/p>/).map(i => i.slice(3));
+                [...document.querySelectorAll(".storyElementWrapper__container > div > p:not(.multimediaIntro)")].forEach(i => {i.parentElement.parentElement.innerHTML = i.parentElement.parentElement.innerHTML.replace(/(storyElementWrapper__element)/g,"contentWrapper $1 --medium")});
+                [...document.querySelectorAll(".toggleBox__content.--padding.--border")].forEach(i => {i.closest(".storyElementWrapper__container").innerHTML = i.closest(".storyElementWrapper__container").innerHTML.replace(/(style=")(background: ?linear-gradient)/g,"$1display:none;$2").replace(/(storyElementWrapper__element)/g,"contentWrapper $1 --small").replace(/(class="toggleBox__contentWrapper --medium")/g,"style=\"height:auto!important\" $1").replace(/(class="toggleBox__headline paragraph --blockIntro")/g,"style=\"display:none\" $1")});
+
+                var paragraphs = [...document.querySelectorAll(".storyElementWrapper__container > div > p:not(.multimediaIntro) > span"),...document.querySelectorAll(".toggleBox__content.--padding.--border .infoBox__storylineElement p.--small > span")];
+                paragraphs.forEach((p,i) => {
+                    var cursor = 0;
+                    var source = p.innerHTML;
+                    if (i == 0 && source.indexOf(".") > 0 && source.indexOf(".") < 20){
+                        [locationText, source] = source.split(/\. (.*)/s).filter(i => i);
+                    }
+                    var splittedSource = source.split(/(<.*?>)/);
+                    var replaceText = texts[i];
+                    var replaceTexts = [];
+                    for (let splittedText of splittedSource){
+                        if (splittedText.length != 0 && splittedText.slice(0,1) != "<"){
+                            splittedText = replaceText.slice(cursor,cursor + splittedText.length);
+                            cursor += splittedText.length;
+                        }
+                        replaceTexts.push(splittedText);
+                    }
+                    replaceText = replaceTexts.join("");
+                    if (locationText != null && location.href.split("/")[3] == "lokales"){
+                        var locationLinkText = document.querySelector(".storyPage__sectionLink").innerText;
+                        if (locationText.length == locationLinkText.length){
+                            replaceText = `${locationLinkText}. ${replaceText}`;
+                        }
+                    }
+                    p.innerHTML = replaceText;
+                });
+            }
+        };
         async function breakVrmArticles(){
             url = location.href
             GM.addStyle(".div.contentWrapper.app__content.--page {display:initial!important;}");
@@ -164,9 +216,9 @@
                 parser = new DOMParser();
                 htmlDoc = parser.parseFromString(html, "text/html");
                 jsonText = htmlDoc.querySelector("div~script").innerText.replace(/^window\.__INITIAL_STATE__=/,"").replace(/;\(function\(\).*/,"");
+                console.log(jsonText);
                 jsonObj = JSON.parse(jsonText);
                 articleText = jsonObj.contentPage.data.context.storylineText;
-                console.log(articleText);
 
                 var texts = articleText.split(/<\/p>/).map(i => i.slice(3));
                 [...document.querySelectorAll(".storyElementWrapper__container > div > p:not(.multimediaIntro)")].forEach(i => {i.parentElement.parentElement.innerHTML = i.parentElement.parentElement.innerHTML.replace(/(storyElementWrapper__element)/g,"contentWrapper $1 --medium")});
